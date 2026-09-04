@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "883154542315",
+    "project_id": "the-neatify-team-e9dbc",
+    "storage_bucket": "the-neatify-team-e9dbc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:883154542315:android:6551dd3a2832c92e8e28ae",
+        "android_client_info": {
+          "package_name": "com.theneatifyteam.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwSPIRGLPuFTVagWORAcgV8vFKykotT2U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

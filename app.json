@@ -1,0 +1,110 @@
+{
+  "expo": {
+    "name": "The Neatify Team",
+    "slug": "the-neatify-team-app",
+    "version": "1.0.5",
+    "orientation": "portrait",
+    "scheme": [
+      "neatifynation",
+      "theneatifyteam"
+    ],
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need your location to provide services at your address"
+      },
+      "associatedDomains": [
+        "applinks:www.theneatifyteam.in",
+        "applinks:theneatifyteam.in"
+      ]
+    },
+    "android": {
+      "package": "com.theneatifyteam.app",
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 9,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.theneatifyteam.in",
+              "pathPrefix": "/service"
+            },
+            {
+              "scheme": "https",
+              "host": "theneatifyteam.in",
+              "pathPrefix": "/service"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "pg-router.dev.razorpay.in"
+            }
+          ]
+        }
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#ffffff",
+          "sounds": [
+            "./assets/sounds/my_custom_sound.wav"
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "targetSdkVersion": 35
+          }
+        }
+      ],
+      "expo-web-browser",
+      "expo-video"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "38a64c1b-a244-4f07-ae9c-f2e285e307ea"
+      }
+    },
+    "owner": "akshitha0909"
+  }
+}

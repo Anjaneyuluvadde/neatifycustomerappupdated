@@ -1,0 +1,412 @@
+﻿diff --git a/src/screens/HomeScreen.tsx b/src/screens/HomeScreen.tsx
+index 3542ea6..917cef7 100644
+--- a/src/screens/HomeScreen.tsx
++++ b/src/screens/HomeScreen.tsx
+@@ -25,18 +25,18 @@ import AnimatedGradientBorder from "../components/AnimatedGradientBorder";
+ 
+ import Header from "../components/Header";
+ import HomeHero from "../components/HomeHero";
++import PromotionalBannerSlider, { PromotionalBanner } from "../components/PromotionalBannerSlider";
+ import ServiceCard from "../components/ServiceCard";
+ import WhyChooseUs from "../components/WhyChooseUs";
+-import PromotionalBannerSlider, { PromotionalBanner } from "../components/PromotionalBannerSlider";
+ import { useLanguage } from "../context/LanguageContext";
+ import { useTheme } from "../context/ThemeContext"; // @ts-ignore
+ import { useBottomNavPadding } from "../hooks/useBottomNavPadding";
+ import { useNotification } from "../hooks/useNotification";
+ import { supabase, SUPABASE_URL } from "../lib/supabase";
++import LocationService from '../services/LocationService';
+ import { COLORS } from "../theme/colors";
+ import { MainCategory, Service } from "../types/service";
+-import { setClaimedOffer, getClaimedOffer, clearClaimedOffer } from "../utils/priceUtils";
+-import LocationService from '../services/LocationService';
++import { clearClaimedOffer, getClaimedOffer, setClaimedOffer } from "../utils/priceUtils";
+ 
+ const { width, height } = Dimensions.get("window");
+ const SLIDER_HEIGHT = height * 0.25; // Increased height to reduce empty space
+@@ -272,7 +272,7 @@ export default function HomeScreen({ navigation }: any) {
+   const handleBannerPress = useCallback(async (banner: PromotionalBanner) => {
+     console.log("[PROMO] Banner tapped");
+     console.log("[PROMO] Service scope:", banner.service_scope);
+-    
++
+     if (!banner.offer_percentage || banner.offer_percentage <= 0) {
+       return;
+     }
+@@ -280,24 +280,25 @@ export default function HomeScreen({ navigation }: any) {
+     try {
+       const existingClaim = await getClaimedOffer();
+       console.log("[PROMO] Existing claimed offer:", existingClaim);
+-      
++
+       let isValidClaim = false;
+       if (existingClaim) {
+-        if (!existingClaim.bannerId) {
+-          // Legacy claim (e.g., welcome offer)
++        console.log("[COUPON STEP 8] Existing claim:", existingClaim);
++
++        if (existingClaim.bannerId === banner.id) {
++          // Exactly the same banner is already claimed
++          isValidClaim = true;
++        } else if (existingClaim.type === "GENERIC_OFFER") {
++          // Preserve generic offers
+           isValidClaim = true;
+         } else {
+-          // Verify if banner still exists in active promotional banners
+-          const stillActive = promotionalBanners.some(b => b.id === existingClaim.bannerId);
+-          if (stillActive) {
+-            isValidClaim = true;
+-          } else {
+-            console.log("[PROMO] Stale banner claim detected. Clearing...");
+-            await clearClaimedOffer();
+-          }
++          // Different banner or stale claim -> clear it to allow the new one
++          console.log("[COUPON STEP 8] Clearing different/stale claim to allow new banner.");
++          await clearClaimedOffer();
++          isValidClaim = false;
+         }
+       }
+-      
++
+       if (isValidClaim) {
+         showToast("An offer is already claimed.", "info");
+         return;
+@@ -314,7 +315,7 @@ export default function HomeScreen({ navigation }: any) {
+           .from("promotional_banner_services")
+           .select("service_id")
+           .eq("banner_id", banner.id);
+-        
++
+         if (svcRels && svcRels.length > 0) {
+           const serviceIds = svcRels.map(r => r.service_id);
+           console.log("[PROMO] Promotional service IDs:", serviceIds);
+@@ -322,7 +323,7 @@ export default function HomeScreen({ navigation }: any) {
+             .from("services")
+             .select("id, title")
+             .in("id", serviceIds);
+-          
++
+           if (svcData) {
+             console.log("[PROMO] Services displayed:", svcData);
+             setPromoBannerServices(svcData);
+@@ -330,13 +331,22 @@ export default function HomeScreen({ navigation }: any) {
+         }
+         setLoadingPromoServices(false);
+       } else {
+-        const claimObject = {
++        const claimType = banner.customer_type === "new" ? "NEW_USER" : "PROMOTIONAL_BANNER";
++        console.log("[COUPON STEP 8] Banner customer_type:", banner.customer_type);
++        console.log("[COUPON STEP 8] Claim type:", claimType);
++        console.log("[COUPON STEP 8] Offer percentage:", banner.offer_percentage);
++
++        const claimObject: any = {
++          type: claimType,
+           bannerId: banner.id,
+           offerPercentage: banner.offer_percentage,
+           claimedAt: new Date().toISOString(),
+         };
+         console.log("[PROMO] Final claim:", claimObject);
+         await setClaimedOffer(claimObject);
++        console.log("[COUPON STEP 8] Applying promotional banner:", claimObject);
++        console.log("[COUPON STEP 3] New user claim created:", claimObject);
++        console.log("[COUPON STEP 3] New claim type:", claimObject.type);
+         showToast(`Offer Claimed! ${banner.offer_percentage}% discount is ready for your booking.`, "success");
+       }
+     } catch (e) {
+@@ -347,7 +357,7 @@ export default function HomeScreen({ navigation }: any) {
+ 
+   const handleSelectedServiceClaim = async () => {
+     if (!selectedPromoServiceId || !activePromoBanner) return;
+-    
++
+     const selectedSvc = promoBannerServices.find(s => s.id === selectedPromoServiceId);
+     if (!selectedSvc) return;
+ 
+@@ -355,16 +365,25 @@ export default function HomeScreen({ navigation }: any) {
+ 
+     try {
+       console.log("[PROMO] Claiming selected service offer:", selectedSvc.title);
+-      const claimObject = {
++      const claimType = activePromoBanner.customer_type === "new" ? "NEW_USER" : "PROMOTIONAL_BANNER";
++      console.log("[COUPON STEP 8] Banner customer_type:", activePromoBanner.customer_type);
++      console.log("[COUPON STEP 8] Claim type:", claimType);
++      console.log("[COUPON STEP 8] Offer percentage:", activePromoBanner.offer_percentage);
++
++      const claimObject: any = {
++        type: claimType,
+         bannerId: activePromoBanner.id,
+         serviceId: selectedSvc.id,
+         serviceTitle: selectedSvc.title,
+         offerPercentage: activePromoBanner.offer_percentage ?? 0,
+         claimedAt: new Date().toISOString(),
+       };
+-      
++
+       await setClaimedOffer(claimObject);
+-      
++      console.log("[COUPON STEP 8] Applying promotional banner:", claimObject);
++      console.log("[COUPON STEP 3] New user claim created:", claimObject);
++      console.log("[COUPON STEP 3] New claim type:", claimObject.type);
++
+       setShowServiceSelectModal(false);
+       console.log("[PROMO] Claim successful");
+       showToast(`Offer Claimed! ${activePromoBanner.offer_percentage}% discount is ready for your booking.`, "success");
+@@ -402,136 +421,136 @@ export default function HomeScreen({ navigation }: any) {
+     setHeroBanners(fallbackBanners);
+   }, []);
+ 
+-              const fetchPromotionalBanners = useCallback(async () => {
+-      const { data, error } = await supabase
+-        .from("promotional_banners")
+-        .select("*")
+-        .eq("is_active", true)
+-        .order("display_order", { ascending: true });
+-  
+-      if (error) {
+-        console.log("Promotional Banners error:", error);
+-        return;
+-      }
++  const fetchPromotionalBanners = useCallback(async () => {
++    const { data, error } = await supabase
++      .from("promotional_banners")
++      .select("*")
++      .eq("is_active", true)
++      .order("display_order", { ascending: true });
++
++    if (error) {
++      console.log("Promotional Banners error:", error);
++      return;
++    }
++
++    if (data) {
++      // --- Phase 2 Customer, Location, and Service Eligibility Check ---
++      try {
++        const { data: { session } } = await supabase.auth.getSession();
++        const userId = session?.user?.id;
++
++        let bookingCount = 0;
++        if (userId) {
++          const { count, error: countError } = await supabase
++            .from("bookings")
++            .select("*", { count: "exact", head: true })
++            .eq("user_id", userId);
++
++          if (!countError && count !== null) {
++            bookingCount = count;
++          }
++        }
++
++        let customerPincode: string | null = null;
++        let customerHubIds: string[] = [];
+ 
+-      if (data) {
+-        // --- Phase 2 Customer, Location, and Service Eligibility Check ---
+         try {
+-          const { data: { session } } = await supabase.auth.getSession();
+-          const userId = session?.user?.id;
+-          
+-          let bookingCount = 0;
+-          if (userId) {
+-            const { count, error: countError } = await supabase
+-              .from("bookings")
+-              .select("*", { count: "exact", head: true })
+-              .eq("user_id", userId);
+-              
+-            if (!countError && count !== null) {
+-              bookingCount = count;
++          const locResult = await LocationService.getSelectedLocation();
++          if (locResult && locResult.postalCode) {
++            customerPincode = locResult.postalCode;
++          }
++
++          if (customerPincode) {
++            const { data: hubData } = await supabase
++              .from("hub_locations")
++              .select("id")
++              .eq("pincode", customerPincode);
++
++            if (hubData) {
++              customerHubIds = hubData.map(h => h.id);
+             }
+           }
++        } catch (e) {
++          console.log("Error resolving customer location:", e);
++        }
++
++        const { data: bannerLocations } = await supabase
++          .from("promotional_banner_locations")
++          .select("banner_id, location_id");
+ 
+-          let customerPincode: string | null = null;
+-          let customerHubIds: string[] = [];
+-          
+-          try {
+-            const locResult = await LocationService.getSelectedLocation();
+-            if (locResult && locResult.postalCode) {
+-              customerPincode = locResult.postalCode;
++        const bannerLocMap: Record<string, string[]> = {};
++        if (bannerLocations) {
++          bannerLocations.forEach(bl => {
++            if (!bannerLocMap[bl.banner_id]) {
++              bannerLocMap[bl.banner_id] = [];
+             }
+-            
+-            if (customerPincode) {
+-              const { data: hubData } = await supabase
+-                .from("hub_locations")
+-                .select("id")
+-                .eq("pincode", customerPincode);
+-                
+-              if (hubData) {
+-                customerHubIds = hubData.map(h => h.id);
+-              }
++            bannerLocMap[bl.banner_id].push(bl.location_id);
++          });
++        }
++
++        // Fetch service scopes
++        const { data: bannerServices } = await supabase
++          .from("promotional_banner_services")
++          .select("banner_id, service_id");
++
++        const bannerSvcMap: Record<string, string[]> = {};
++        if (bannerServices) {
++          bannerServices.forEach(bs => {
++            if (!bannerSvcMap[bs.banner_id]) {
++              bannerSvcMap[bs.banner_id] = [];
+             }
+-          } catch (e) {
+-            console.log("Error resolving customer location:", e);
+-          }
++            bannerSvcMap[bs.banner_id].push(bs.service_id);
++          });
++        }
+ 
+-          const { data: bannerLocations } = await supabase
+-            .from("promotional_banner_locations")
+-            .select("banner_id, location_id");
+-
+-          const bannerLocMap: Record<string, string[]> = {};
+-          if (bannerLocations) {
+-            bannerLocations.forEach(bl => {
+-              if (!bannerLocMap[bl.banner_id]) {
+-                bannerLocMap[bl.banner_id] = [];
+-              }
+-              bannerLocMap[bl.banner_id].push(bl.location_id);
+-            });
++        // HomeScreen does NOT have a specific current service context active.
++        const currentServiceId: string | null = null;
++
++        console.log("=== BANNER ELIGIBILITY CHECK ===");
++        console.log("User ID:", userId);
++        console.log("Booking Count:", bookingCount);
++        console.log("Customer Pincode:", customerPincode);
++        console.log("Resolved Hub IDs:", customerHubIds);
++        console.log("Current Service ID:", currentServiceId);
++
++        const eligibleBanners = data.filter(banner => {
++          // 1. Customer Check
++          let customerEligible = false;
++          if (!banner.customer_type || banner.customer_type === "everyone") {
++            customerEligible = true;
++          } else if (banner.customer_type === "new") {
++            customerEligible = bookingCount === 0;
++          } else if (banner.customer_type === "existing") {
++            customerEligible = bookingCount > 0;
+           }
+ 
+-          // Fetch service scopes
+-          const { data: bannerServices } = await supabase
+-            .from("promotional_banner_services")
+-            .select("banner_id, service_id");
+-          
+-          const bannerSvcMap: Record<string, string[]> = {};
+-          if (bannerServices) {
+-            bannerServices.forEach(bs => {
+-              if (!bannerSvcMap[bs.banner_id]) {
+-                bannerSvcMap[bs.banner_id] = [];
+-              }
+-              bannerSvcMap[bs.banner_id].push(bs.service_id);
+-            });
++          // 2. Location Check
++          let locationEligible = false;
++          if (!banner.pincode_scope || banner.pincode_scope === "all") {
++            locationEligible = true;
++          } else if (banner.pincode_scope === "selected") {
++            const allowedLocs = bannerLocMap[banner.id] || [];
++            locationEligible = customerHubIds.some(hubId => allowedLocs.includes(hubId));
+           }
+ 
+-          // HomeScreen does NOT have a specific current service context active.
+-          const currentServiceId: string | null = null;
+-
+-          console.log("=== BANNER ELIGIBILITY CHECK ===");
+-          console.log("User ID:", userId);
+-          console.log("Booking Count:", bookingCount);
+-          console.log("Customer Pincode:", customerPincode);
+-          console.log("Resolved Hub IDs:", customerHubIds);
+-          console.log("Current Service ID:", currentServiceId);
+-
+-          const eligibleBanners = data.filter(banner => {
+-            // 1. Customer Check
+-            let customerEligible = false;
+-            if (!banner.customer_type || banner.customer_type === "everyone") {
+-              customerEligible = true;
+-            } else if (banner.customer_type === "new") {
+-              customerEligible = bookingCount === 0;
+-            } else if (banner.customer_type === "existing") {
+-              customerEligible = bookingCount > 0;
+-            }
+-
+-            // 2. Location Check
+-            let locationEligible = false;
+-            if (!banner.pincode_scope || banner.pincode_scope === "all") {
+-              locationEligible = true;
+-            } else if (banner.pincode_scope === "selected") {
+-              const allowedLocs = bannerLocMap[banner.id] || [];
+-              locationEligible = customerHubIds.some(hubId => allowedLocs.includes(hubId));
+-            }
++          // 3. Service Check is deferred to the modal for banner visibility on HomeScreen
++          // The banner should be visible as long as customer and location match
++          let serviceEligible = true;
+ 
+-            // 3. Service Check is deferred to the modal for banner visibility on HomeScreen
+-            // The banner should be visible as long as customer and location match
+-            let serviceEligible = true; 
++          const finalEligible = customerEligible && locationEligible;
+ 
+-            const finalEligible = customerEligible && locationEligible;
++          console.log(`Banner ${banner.id} | CustType: ${banner.customer_type} (${customerEligible}) | LocScope: ${banner.pincode_scope} (${locationEligible}) | Final: ${finalEligible} `);
++          return finalEligible;
++        });
+ 
+-            console.log(`Banner ${banner.id} | CustType: ${banner.customer_type} (${customerEligible}) | LocScope: ${banner.pincode_scope} (${locationEligible}) | Final: ${finalEligible} `);
+-            return finalEligible;
+-          });
+-          
+-          console.log("================================");
+-          setPromotionalBanners(eligibleBanners);
+-        } catch (err) {
+-          console.error("Error evaluating banner eligibility:", err);
+-          setPromotionalBanners(data);
+-        }
++        console.log("================================");
++        setPromotionalBanners(eligibleBanners);
++      } catch (err) {
++        console.error("Error evaluating banner eligibility:", err);
++        setPromotionalBanners(data);
+       }
+-    }, []);
++    }
++  }, []);
+ 
+   const fetchPopups = useCallback(async () => {
+     if (hasShownPopupThisSession) return;
+@@ -1012,6 +1031,7 @@ export default function HomeScreen({ navigation }: any) {
+                         const matchingSvc = services.find((s) => s.title === off.title);
+                         if (matchingSvc) {
+                           await setClaimedOffer({
++                            type: "GENERIC_OFFER",
+                             serviceId: matchingSvc.id,
+                             serviceTitle: matchingSvc.title,
+                             offerPercentage: off.offer_percentage || 40,
