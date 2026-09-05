@@ -1,7 +1,8 @@
 import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import * as Linking from "expo-linking";
+import Constants from "expo-constants";
 import React, { useEffect, useState } from "react";
-import { StatusBar, StyleSheet } from "react-native";
+import { StatusBar, StyleSheet, LogBox } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -10,11 +11,19 @@ import { NotificationProvider } from "./src/context/NotificationContext";
 import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
 import { supabase } from "./src/lib/supabase";
 import AppNavigator from "./src/navigation/AppNavigator";
-import * as Notifications from 'expo-notifications';
 import { registerForPushNotificationsAsync, savePushTokenToSupabase } from "./src/utils/pushNotifications";
 import { BookingCartProvider } from "./src/context/BookingCartContext";
-
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+let Notifications: any = null;
+if (Constants.appOwnership !== 'expo') {
+  Notifications = require('expo-notifications');
+}
+
+LogBox.ignoreLogs([
+  'setLayoutAnimationEnabledExperimental is currently a no-op',
+  'Property "transform" of AnimatedComponent(View) may be overwritten by a layout animation',
+]);
 
 export default function App() {
   const [initialRoute, setInitialRoute] = useState<"LocationAccess" | "Login" | "HomeDrawer" | "CompleteProfile">("HomeDrawer");
@@ -134,7 +143,14 @@ export default function App() {
         }
         if (event === "SIGNED_IN" && session?.user && !hasCheckedOnce) {
           hasCheckedOnce = true;
-          handlePushToken(session.user.id);
+          
+          // FIX: Delay the push token request (which may open a native OS permission dialog) 
+          // to ensure it doesn't background the app during the navigation transition.
+          // Backgrounding during transition causes React Navigation to silently drop resets in release builds.
+          setTimeout(() => {
+            handlePushToken(session.user.id);
+          }, 3000);
+          
           setTimeout(async () => {
             console.log("🌐 [App Debug] Checking profile completeness for SIGNED_IN user...");
             const isComplete = await checkCompleteness(session.user.id, true);
@@ -221,24 +237,27 @@ export default function App() {
 
     const subscription = Linking.addEventListener("url", handleDeepLink);
 
-    // Listen for notification taps to handle navigation
-    const notificationResponseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      const data = response.notification.request.content.data;
-      if (data?.screen === 'bookings') {
-        navigationRef.current?.navigate('HomeDrawer', {
-          screen: 'AuthenticatedScreens',
-          params: {
-            screen: 'MainTabs',
-            params: { screen: 'MyBookingsTab' }
-          }
-        });
-      }
-    });
+    // Listen for notification taps to handle navigation (Skip in Expo Go)
+    let notificationResponseSubscription: any = null;
+    if (Constants.appOwnership !== 'expo') {
+      notificationResponseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+        const data = response.notification.request.content.data;
+        if (data?.screen === 'bookings') {
+          navigationRef.current?.navigate('HomeDrawer', {
+            screen: 'AuthenticatedScreens',
+            params: {
+              screen: 'MainTabs',
+              params: { screen: 'MyBookingsTab' }
+            }
+          });
+        }
+      });
+    }
 
     return () => {
       listener.subscription.unsubscribe();
       subscription.remove();
-      notificationResponseSubscription.remove();
+      if (notificationResponseSubscription) notificationResponseSubscription.remove();
     };
   }, []);
 

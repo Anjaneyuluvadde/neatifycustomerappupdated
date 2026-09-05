@@ -434,8 +434,12 @@ export default function LoginScreen(props: any) {
         console.log("🚀 [Auth Debug] Setting session in Supabase client...");
         const { data: sessionData, error: sessionError } = await supabase.auth.setSession(data.session);
         console.log("🚀 [Auth Debug] setSession result:", { sessionData, sessionError });
+        
+        if (sessionError) {
+          throw new Error(sessionError.message || "Failed to save session locally.");
+        }
       } else {
-        console.warn("⚠️ [Auth Debug] No session object in verify-otp response!");
+        throw new Error("No session object in verify-otp response!");
       }
 
       const currentUserId = data.user?.id || (await supabase.auth.getUser()).data.user?.id;
@@ -445,13 +449,21 @@ export default function LoginScreen(props: any) {
         throw new Error("Could not retrieve valid user ID after OTP verification.");
       }
 
-      await checkProfileAndNavigate(currentUserId);
+      // 🛑 FIX: We intentionally DO NOT call checkProfileAndNavigate() here anymore.
+      // App.tsx has a global onAuthStateChange listener that automatically handles 
+      // navigating to HomeDrawer or CompleteProfile when a session is created.
+      // Calling it here causes a double-navigation race condition which crashes/freezes 
+      // React Navigation in Android release builds.
+      console.log("🚀 [Auth Debug] OTP verified. Waiting for App.tsx global listener to handle navigation.");
+
     } catch (err: any) {
       console.error("❌ [Auth Debug] handleVerifyOtp failed:", err);
       showAlert({ type: "error", title: "Verification Failed", message: err.message });
-    } finally {
+      // Only set loading to false if verification failed. 
+      // If it succeeded, we keep the loading spinner until the component unmounts during navigation!
       setLoading(false);
-    }
+    } 
+    // The finally block was removed so the loading spinner stays active until App.tsx navigates away.
   };
 
   // -------------------------------------

@@ -8,7 +8,6 @@ import {
   Dimensions,
   FlatList,
   ImageSourcePropType,
-  InteractionManager,
   Modal,
   Pressable,
   RefreshControl,
@@ -649,11 +648,11 @@ export default function HomeScreen({ navigation }: any) {
       };
 
       // Wait for navigation transition to finish before fetching
-      const interactionPromise = InteractionManager.runAfterInteractions(() => {
+      const interactionPromise = requestIdleCallback(() => {
         loadAll();
       });
 
-      return () => interactionPromise.cancel();
+      return () => cancelIdleCallback(interactionPromise);
     }, [fetchServices, fetchHeroBanners, fetchPromotionalBanners, fetchPopups, fetchMainCategories, checkWelcomeReward, checkSignupOfferReward])
   );
 

@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { 
+  FadeIn, 
+  FadeOut, 
+  LinearTransition 
+} from 'react-native-reanimated';
 import { useTheme } from '../context/ThemeContext';
 import { COLORS } from '../theme/colors';
-
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android') {
-  if (UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-  }
-}
 
 export interface FAQ {
   id: number;
@@ -38,12 +36,15 @@ const FAQItem: React.FC<FAQItemProps> = ({ faq, isActive, onToggle }) => {
   const leftBorderColor = isActive ? COLORS.saffron : theme.border;
 
   return (
-    <View style={[styles.card, {
-      backgroundColor: bgColor,
-      borderColor: borderColor,
-      borderLeftWidth: leftBorderWidth,
-      borderLeftColor: leftBorderColor,
-    }]}>
+    <Animated.View 
+      layout={LinearTransition.duration(250)}
+      style={[styles.card, {
+        backgroundColor: bgColor,
+        borderColor: borderColor,
+        borderLeftWidth: leftBorderWidth,
+        borderLeftColor: leftBorderColor,
+      }]}
+    >
       <Pressable onPress={onToggle} style={styles.header}>
         <View style={styles.questionContainer}>
           <View style={[styles.iconWrapper, { backgroundColor: isActive ? COLORS.saffron : (isDark ? '#333' : '#F3F4F6') }]}>
@@ -56,13 +57,17 @@ const FAQItem: React.FC<FAQItemProps> = ({ faq, isActive, onToggle }) => {
       </Pressable>
       
       {isActive && (
-        <View style={styles.body}>
+        <Animated.View 
+          entering={FadeIn.duration(200)} 
+          exiting={FadeOut.duration(200)}
+          style={styles.body}
+        >
           <Text style={[styles.answer, { color: theme.textLight }]}>
             {faq.answer}
           </Text>
-        </View>
+        </Animated.View>
       )}
-    </View>
+    </Animated.View>
   );
 };
 
@@ -74,8 +79,6 @@ const FAQAccordion: React.FC<FAQAccordionProps> = ({ faqs }) => {
   const [openFaqId, setOpenFaqId] = useState<number | null>(faqs.length > 0 ? faqs[0].id : null);
 
   const handleToggle = (id: number) => {
-    // Configure standard layout animation for a smooth, native accordion effect without heavy JS computation
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setOpenFaqId((currentId) => (currentId === id ? null : id));
   };
 

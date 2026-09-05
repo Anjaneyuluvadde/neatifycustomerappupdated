@@ -71,7 +71,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
           await SystemUI.setBackgroundColorAsync(themeColors.background);
 
           // Update the button style (icons) to be visible on the background
-          await NavigationBar.setButtonStyleAsync(isDark ? "light" : "dark");
+          NavigationBar.setStyle(isDark ? "light" : "dark");
         } catch (e) {
           console.error("Failed to update system UI:", e);
         }

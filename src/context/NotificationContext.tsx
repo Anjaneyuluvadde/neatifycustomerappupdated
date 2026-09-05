@@ -1,5 +1,11 @@
 import React, { createContext, ReactNode, useState, useEffect, useRef } from "react";
-import * as Notifications from 'expo-notifications';
+import type { Subscription } from 'expo-notifications';
+import Constants from 'expo-constants';
+
+let Notifications: any = null;
+if (Constants.appOwnership !== 'expo') {
+  Notifications = require('expo-notifications');
+}
 import { supabase } from "../lib/supabase";
 import { registerForPushNotificationsAsync, savePushTokenToSupabase } from "../utils/pushNotifications";
 import AppToast from "../components/AppToast";
@@ -40,8 +46,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const [showAlertModal, setShowAlertModal] = useState(false);
     const [showToastModal, setShowToastModal] = useState(false);
 
-    const notificationListener = useRef<Notifications.Subscription | null>(null);
-    const responseListener = useRef<Notifications.Subscription | null>(null);
+    const notificationListener = useRef<Subscription | null>(null);
+    const responseListener = useRef<Subscription | null>(null);
 
     useEffect(() => {
         // ✅ THE MISSING LINK: Register tokens automatically
@@ -67,25 +73,27 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             }
         });
 
-        // Set up the custom channel for Android
-        Notifications.setNotificationChannelAsync('custom-sound-channel-v3', {
-            name: 'Custom Sound Alerts',
-            importance: Notifications.AndroidImportance.MAX,
-            sound: 'my_custom_sound.wav', // Put the exact file name here (with extension)
-        });
+        if (Constants.appOwnership !== 'expo') {
+            // Set up the custom channel for Android
+            Notifications.setNotificationChannelAsync('custom-sound-channel-v3', {
+                name: 'Custom Sound Alerts',
+                importance: Notifications.AndroidImportance.MAX,
+                sound: 'my_custom_sound.wav', // Put the exact file name here (with extension)
+            });
 
-        notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-            console.log('Notification Received:', notification);
-            // In-app feedback for foreground notifications
-            const { title, body } = notification.request.content;
-            showToast(`${title}: ${body}`, "info");
-        });
+            notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+                console.log('Notification Received:', notification);
+                // In-app feedback for foreground notifications
+                const { title, body } = notification.request.content;
+                showToast(`${title}: ${body}`, "info");
+            });
 
-        responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-            console.log('Notification Tapped:', response);
-            // Deep linking is handled by Expo Router/Linking if configured, 
-            // but we can add custom logic here if needed.
-        });
+            responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+                console.log('Notification Tapped:', response);
+                // Deep linking is handled by Expo Router/Linking if configured, 
+                // but we can add custom logic here if needed.
+            });
+        }
 
         return () => {
             notificationListener.current?.remove();

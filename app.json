@@ -97,7 +97,11 @@
         }
       ],
       "expo-web-browser",
-      "expo-video"
+      "expo-video",
+      "expo-image",
+      "expo-router",
+      "expo-splash-screen",
+      "expo-status-bar"
     ],
     "extra": {
       "router": {},
